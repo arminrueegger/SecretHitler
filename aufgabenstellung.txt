@@ -1,0 +1,29 @@
+
+Aufgabenstellung
+Wir implementieren ein funktionales Brett-/Gesellschaftsspiel/TCG.
+1. Es soll noch keine funktionierende Implementation dieses Spiels geben (World first). Das Spiel ist mit der Lehrperson abzusprechen. Komplexität fliesst in die Benotung ein.
+2. Der Fokus liegt auf der korrekt abgebildeten Spiellogik und weniger auf einem nutzbaren UI. Interaktion via pretty- Stdlo ist sinnvoll (zB. farbige ASCII Konsole, darf aber auch klickbar sein).
+3. Die Implementation nutzt exzessiv funktionale Programmierpatterns: Dies ist sprachspezifisch. Funktionen sind klein und Stream-Strukturen werden bevorzugt. Als rule-of-thumb wird maximal 2x "nested"/eingerückt, d.h. ein Loop + ein if aber nicht tiefer, sofern überhaupt ein Loop nötig ist.
+4. Es werden unveränderbare Datenstrukturen verwendet zur Abbildung des kompletten Spielstandes. In einigen Programmiersprachen sollen entsprechende Libraries verwendet werden, die das unterstützen.
+5. Spezialanforderung: Jeder Spielzug kann durch den User rückgängig gemacht werden (durch einfaches Wechseln auf den letzten Spielstand).
+6. Es wird zu Beginn des Projektes ein GitHub Repo erstellt und die LP eingeladen. Es gibt Zwischenziele und deren rechtzeiger Erreichungsgrad fliesst in die Benotung ein.
+Zwischenziele / Bewertung
+1.29.3. spec.md 3P:
+Beschreibt was gebaut werden soll: Anforderungen, Ziele, Use Cases, Akzeptanzkriterien, Constraints. Fokus auf fachliche Spezifikation, nicht auf Umsetzung. In unserem Fall explizit auch:
+• Spielregeln: die offiziellen Spielregeln mit eigenen Erweiterungen, wo Unklarheiten aus dem reinen Text bestehen.
+• Akzeptanzkriterien: minimal ist die korrekte Spiellogik, oder nach Absprache: was heisst das?
+• Grundlegende Interaktion mit dem User: was kann der Spieler? Wie werden Spielerwechsel gehandhabt?
+2. 12.4. plan.md 3P:
+Beschreibt wie es umgesetzt wird: Architektur, Tasks/Steps, Reihenfolge, technische Entscheidungen. Fokus auf konkrete Ausführungsschritte für die Implementierung.
+• Programmiersprache und Libraries für Immutability/funktionales, wo nötig. Funktionale Patterns, welche genutzt werden müssen, mit Links zu Spec/Blogs. Nicht bloss diese Aufgabenstellung, sondern wie man das in Ihrer Programmiersprache umsetzt.
+• Wie ist der Zeitplan (kurz)? Inkl. wer macht was und was ist Teil des PoC?
+• Wie werden Anforderungen der Aufgabenstellung oben konkret umgesetzt und enforced? Wie ist das Code/Test Layout?
+3. 11.5. PoC 3P:
+Erster lauffähiger Prototyp
+• Lauffähig in der Stunde auf dem eigenen PC
+• mit Spielmechanik gemäss dem vorherigen Plan. Beispielsweise grundlegende Funktionalität für Spielerwechsel, alle "Karten" existieren, Punktesystem,... ohne Spezialfälle.
+4. 18.5. 9P:
+Finale Abgabe mit begleiteter Demo-/Spielrunde in der Klasse.
+• Verwendete funktionale Patterns können aufgezeigt/diskutiert werden.
+• Die "Rückgängig" Funktion wird demonstriert.
+• Es gibt eine persönliche Meinung/Wertung, ob funktionale Patterns weiter genutzt werden im beruflichen Umfeld.

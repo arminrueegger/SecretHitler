@@ -1,0 +1,34 @@
+# Progress
+
+- [x] Build setup (Gradle, Spring Boot 3.3.5, Java 21 toolchain, JUnit 5 + AssertJ)
+- [x] Spring Boot main class pinned so two `main()`s coexist
+- [x] `JavaExec` tasks pinned to Java 21 launcher
+- [x] `runConsole` Gradle task
+- [x] `SecretHitlerApplication`, `GameSession`, `GameController` placeholder, `application.properties`
+- [x] `GameState` immutable record with defensive-copy constructor
+- [x] `Player` record
+- [x] Enums: `Phase`, `Role`, `Party`, `Policy`, `ExecutivePower`, `WinCondition`
+- [x] `FascistBoard.forPlayerCount(int)` per official 5-6 / 7-8 / 9-10 layouts
+- [x] `PendingAction` sealed interface
+- [x] `GameEngine.newGame` (random roles per spec table, shuffled 17-card deck)
+- [x] `GameEngine.failedElection`
+- [x] `GameEngine.drawThree` with auto-reshuffle when draw pile < 3
+- [x] `GameEngine.enactPolicy` with win-check (5 liberal / 6 fascist)
+- [x] `ConsoleUi` (Scanner/PrintStream wrapper, retry-on-invalid prompts)
+- [x] `ConsoleApp` main + loop: nominate -> vote -> legislative session
+- [x] Tests: Spring `contextLoads`, `FascistBoardTest` (5 cases)
+- [ ] Election tracker advance on failed vote
+- [ ] Top-deck chaos when tracker hits 3 + term-limit reset
+- [ ] Term limits (lastElected pair restricts chancellor; relaxed when alive < 5)
+- [ ] Executive power: Investigate Loyalty
+- [ ] Executive power: Call Special Election
+- [ ] Executive power: Policy Peek
+- [ ] Executive power: Execution
+- [ ] Veto power (unlock after 5 fascist; chancellor proposes / president confirms)
+- [ ] Win: Hitler elected chancellor after >=3 fascist policies
+- [ ] Win: Hitler executed
+- [ ] Undo (wire `GameSession.history` push/pop, clear pending on undo)
+- [ ] JSON DTOs in `api/`
+- [ ] Hotseat handoff screens
+- [ ] Frontend (HTML/CSS/JS) per `plan.md`
+- [ ] Role visibility filter: 5-6 Hitler sees fascists; 7+ only fascists see Hitler

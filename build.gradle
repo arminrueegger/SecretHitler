@@ -13,6 +13,24 @@ java {
     }
 }
 
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+springBoot {
+    mainClass = 'ch.zli.mm233.SecretHitlerApplication'
+}
+
+tasks.register('runConsole', JavaExec) {
+    group = 'application'
+    description = 'Run the basic console game.'
+    mainClass = 'ch.zli.mm233.console.ConsoleApp'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+}
+
 repositories {
     mavenCentral()
 }

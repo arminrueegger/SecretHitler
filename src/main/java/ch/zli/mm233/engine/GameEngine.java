@@ -81,14 +81,58 @@ public final class GameEngine {
     }
 
     public static GameState failedElection(GameState s) {
-        return rebuild(s,
+        int newTracker = s.electionTracker() + 1;
+        if (newTracker >= 3) {
+            return enactChaosPolicy(s);
+        }
+
+        return rebuildWithTracker(s,
                 s.liberalPolicies(),
                 s.fascistPolicies(),
                 s.drawPile(),
                 s.discardPile(),
+                newTracker,
                 nextPresident(s),
                 Phase.ELECTION,
                 s.winner());
+    }
+
+    private static GameState enactChaosPolicy(GameState s) {
+        boolean needsReshuffle = s.drawPile().isEmpty();
+        List<Policy> sourceDeck = needsReshuffle
+                ? reshuffledDeck(s.drawPile(), s.discardPile())
+                : s.drawPile();
+        List<Policy> discard = needsReshuffle ? List.of() : s.discardPile();
+
+        Policy enacted = sourceDeck.getFirst();
+        List<Policy> remainingDraw = sourceDeck.subList(1, sourceDeck.size());
+
+        int newLib = enacted == Policy.LIBERAL ? s.liberalPolicies() + 1 : s.liberalPolicies();
+        int newFasc = enacted == Policy.FASCIST ? s.fascistPolicies() + 1 : s.fascistPolicies();
+
+        WinCondition winner = newLib >= LIBERAL_WIN ? WinCondition.LIBERAL_POLICIES
+                : newFasc >= FASCIST_WIN ? WinCondition.FASCIST_POLICIES
+                : null;
+        Phase phase = winner != null ? Phase.GAME_OVER : Phase.ELECTION;
+        int nextPres = winner != null ? s.presidentIndex() : nextPresident(s);
+
+        return new GameState(
+                s.players(),
+                s.executiveActions(),
+                newLib,
+                newFasc,
+                remainingDraw,
+                discard,
+                0,
+                nextPres,
+                null,
+                null,
+                s.investigatedPlayerIds(),
+                s.specialElectionReturnIndex(),
+                newFasc >= 5 || s.vetoUnlocked(),
+                phase,
+                winner
+        );
     }
 
     public static DrawResult drawThree(GameState s) {
@@ -126,7 +170,7 @@ public final class GameEngine {
                 Stream.of(presDiscard, chancDiscard)
         ).toList();
 
-        return rebuild(s, newLib, newFasc, s.drawPile(), newDiscard, nextPres, phase, winner);
+        return rebuildWithTracker(s, newLib, newFasc, s.drawPile(), newDiscard, 0, nextPres, phase, winner);
     }
 
     private static int fascistsFor(int playerCount) {
@@ -160,6 +204,21 @@ public final class GameEngine {
             Phase phase,
             WinCondition winner
     ) {
+        return rebuildWithTracker(s, liberalPolicies, fascistPolicies, drawPile, discardPile,
+                s.electionTracker(), presidentIndex, phase, winner);
+    }
+
+    private static GameState rebuildWithTracker(
+            GameState s,
+            int liberalPolicies,
+            int fascistPolicies,
+            List<Policy> drawPile,
+            List<Policy> discardPile,
+            int electionTracker,
+            int presidentIndex,
+            Phase phase,
+            WinCondition winner
+    ) {
         return new GameState(
                 s.players(),
                 s.executiveActions(),
@@ -167,7 +226,7 @@ public final class GameEngine {
                 fascistPolicies,
                 drawPile,
                 discardPile,
-                s.electionTracker(),
+                electionTracker,
                 presidentIndex,
                 s.lastElectedPresident(),
                 s.lastElectedChancellor(),

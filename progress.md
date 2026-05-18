@@ -16,18 +16,20 @@
 - [x] `GameEngine.enactPolicy` with win-check (5 liberal / 6 fascist)
 - [x] `ConsoleUi` (Scanner/PrintStream wrapper, retry-on-invalid prompts)
 - [x] `ConsoleApp` main + loop: nominate -> vote -> legislative session
-- [x] Tests: Spring `contextLoads`, `FascistBoardTest` (5 cases)
-- [ ] Election tracker advance on failed vote
-- [ ] Top-deck chaos when tracker hits 3 + term-limit reset
-- [ ] Term limits (lastElected pair restricts chancellor; relaxed when alive < 5)
+- [x] Tests: Spring `contextLoads`, `FascistBoardTest` (5 cases), `GameEngineTest` (7 cases)
+- [x] Election tracker advance on failed vote (reachable via `ConsoleApp`)
+- [x] Top-deck chaos when tracker hits 3 + term-limit reset (reachable via `ConsoleApp`)
+- [x] Term limits (lastElected pair restricts chancellor; relaxed when alive < 5) — fixed off-by-one (`>=5`) and now invoked from `ConsoleApp`
+- [x] Win: Hitler elected chancellor after >=3 fascist policies — `ConsoleApp` now calls `GameEngine.resolveElection`
+- [x] `runConsole` toolchain fix (launcher scoped to `runConsole` + `bootRun` only, no longer conflicts with IntelliJ's synthetic `main()` task)
 - [ ] Executive power: Investigate Loyalty
 - [ ] Executive power: Call Special Election
 - [ ] Executive power: Policy Peek
 - [ ] Executive power: Execution
 - [ ] Veto power (unlock after 5 fascist; chancellor proposes / president confirms)
-- [ ] Win: Hitler elected chancellor after >=3 fascist policies
 - [ ] Win: Hitler executed
 - [ ] Undo (wire `GameSession.history` push/pop, clear pending on undo)
+- [ ] Dead-player vote exclusion (engine already rejects; console now skips, but no executions to trigger it yet)
 - [ ] JSON DTOs in `api/`
 - [ ] Hotseat handoff screens
 - [ ] Frontend (HTML/CSS/JS) per `plan.md`

@@ -2,7 +2,9 @@ package ch.zli.mm233.console;
 
 import ch.zli.mm233.engine.GameEngine;
 import ch.zli.mm233.engine.model.GameState;
+import ch.zli.mm233.engine.model.PendingAction;
 import ch.zli.mm233.engine.model.Phase;
+import ch.zli.mm233.engine.model.Player;
 import ch.zli.mm233.engine.model.Policy;
 
 import java.util.ArrayList;
@@ -55,45 +57,58 @@ public class ConsoleApp {
 
     private GameState runRound(GameState s) {
         printPublicState(s);
-        int chancellorIdx = nominateChancellor(s);
-        boolean elected = collectVotes(s);
-        if (!elected) {
-            ui.println("Vote FAILED. Next president.");
-            return GameEngine.failedElection(s);
+        GameState afterNominate = nominateChancellor(s);
+        int chancellorIdx = ((PendingAction.Election) afterNominate.pendingAction())
+                .chancellorCandidateIndex();
+        GameState afterVotes = collectVotes(afterNominate);
+        GameState resolved = GameEngine.resolveElection(afterVotes);
+
+        if (resolved.phase() == Phase.GAME_OVER) {
+            return resolved;
         }
-        ui.println("Vote PASSED. Chancellor is " + s.players().get(chancellorIdx).name() + ".");
-        return runLegislativeSession(s, chancellorIdx);
+        if (resolved.phase() == Phase.ELECTION) {
+            ui.println("Vote FAILED. Election tracker: " + resolved.electionTracker() + "/3.");
+            return resolved;
+        }
+        ui.println("Vote PASSED. Chancellor is "
+                + s.players().get(chancellorIdx).name() + ".");
+        return runLegislativeSession(resolved, chancellorIdx);
     }
 
     private void printPublicState(GameState s) {
         ui.blank();
         ui.println("--- Round ---");
-        ui.println("Liberal: " + s.liberalPolicies() + "/5    Fascist: " + s.fascistPolicies() + "/6");
+        ui.println("Liberal: " + s.liberalPolicies() + "/5    Fascist: "
+                + s.fascistPolicies() + "/6    Tracker: " + s.electionTracker() + "/3");
         ui.println("President: " + s.players().get(s.presidentIndex()).name()
                 + " (#" + s.presidentIndex() + ")");
     }
 
-    private int nominateChancellor(GameState s) {
-        ui.println("Players:");
-        s.players().forEach(p -> ui.println("  " + p.id() + " = " + p.name()));
-        int idx;
-        do {
-            idx = ui.promptInt("President picks chancellor", 0, s.players().size() - 1);
-            if (idx == s.presidentIndex()) {
-                ui.println("  cannot pick yourself, try again");
+    private GameState nominateChancellor(GameState s) {
+        List<Player> eligible = s.players().stream()
+                .filter(p -> GameEngine.isEligibleChancellor(s, p.id()))
+                .toList();
+        ui.println("Eligible chancellors:");
+        eligible.forEach(p -> ui.println("  " + p.id() + " = " + p.name()));
+        while (true) {
+            int idx = ui.promptInt("President picks chancellor",
+                    0, s.players().size() - 1);
+            try {
+                return GameEngine.nominateChancellor(s, idx);
+            } catch (IllegalArgumentException e) {
+                ui.println("  " + e.getMessage() + " — try again");
             }
-        } while (idx == s.presidentIndex());
-        return idx;
+        }
     }
 
-    private boolean collectVotes(GameState s) {
-        long yes = s.players().stream()
-                .map(p -> ui.promptYesNo(p.name() + " votes"))
-                .filter(v -> v)
-                .count();
-        long no = s.players().size() - yes;
-        ui.println("Result: " + yes + " Ja / " + no + " Nein");
-        return yes > no;
+    private GameState collectVotes(GameState s) {
+        List<Player> voters = s.players().stream().filter(Player::alive).toList();
+        GameState current = s;
+        for (Player p : voters) {
+            current = GameEngine.castVote(current, p.id(),
+                    ui.promptYesNo(p.name() + " votes"));
+        }
+        return current;
     }
 
     private GameState runLegislativeSession(GameState s, int chancellorIdx) {

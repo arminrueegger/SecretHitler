@@ -214,12 +214,18 @@ public final class GameEngine {
         );
     }
 
-    private static boolean isEligibleChancellor(GameState s, int candidateIndex) {
+    public static boolean isEligibleChancellor(GameState s, int candidateIndex) {
+        if (candidateIndex == s.presidentIndex()) {
+            return false;
+        }
+        if (!s.players().get(candidateIndex).alive()) {
+            return false;
+        }
         long aliveCount = s.players().stream().filter(Player::alive).count();
         if (s.lastElectedChancellor() != null && s.lastElectedChancellor() == candidateIndex) {
             return false;
         }
-        if (aliveCount > 5 && s.lastElectedPresident() != null && s.lastElectedPresident() == candidateIndex) {
+        if (aliveCount >= 5 && s.lastElectedPresident() != null && s.lastElectedPresident() == candidateIndex) {
             return false;
         }
         return true;

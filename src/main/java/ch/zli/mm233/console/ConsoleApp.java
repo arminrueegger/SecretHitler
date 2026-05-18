@@ -27,11 +27,22 @@ public class ConsoleApp {
         ui.println("=== Secret Hitler (basic console) ===");
         List<String> names = readNames();
         GameState state = GameEngine.newGame(names);
+        printSecretRoles(state);
         while (state.phase() != Phase.GAME_OVER) {
             state = runRound(state);
         }
         ui.blank();
         ui.println("GAME OVER - " + state.winner());
+    }
+
+    private void printSecretRoles(GameState state) {
+        ui.blank();
+        ui.println("=== SECRET ROLE ASSIGNMENTS ===");
+        state.players().forEach(p ->
+                ui.println("  " + p.name() + " -> " + p.role()));
+        ui.blank();
+        ui.println("Press ENTER to continue (clear screen first!)");
+        ui.promptLine("");
     }
 
     private List<String> readNames() {

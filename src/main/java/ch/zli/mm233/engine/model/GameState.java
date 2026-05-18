@@ -21,7 +21,8 @@ public record GameState(
         Integer specialElectionReturnIndex,
         boolean vetoUnlocked,
         Phase phase,
-        WinCondition winner
+        WinCondition winner,
+        PendingAction pendingAction
 ) {
     public GameState {
         players               = List.copyOf(Objects.requireNonNull(players, "players"));

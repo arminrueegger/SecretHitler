@@ -32,3 +32,6 @@
 - [ ] Hotseat handoff screens
 - [ ] Frontend (HTML/CSS/JS) per `plan.md`
 - [ ] Role visibility filter: 5-6 Hitler sees fascists; 7+ only fascists see Hitler
+
+- [x] implement chaos mechanic
+- [x] implement presidential election and chancellor nomination

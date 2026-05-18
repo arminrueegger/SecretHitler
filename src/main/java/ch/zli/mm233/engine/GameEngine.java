@@ -3,6 +3,7 @@ package ch.zli.mm233.engine;
 import ch.zli.mm233.engine.model.FascistBoard;
 import ch.zli.mm233.engine.model.GameState;
 import ch.zli.mm233.engine.model.Party;
+import ch.zli.mm233.engine.model.PendingAction;
 import ch.zli.mm233.engine.model.Phase;
 import ch.zli.mm233.engine.model.Player;
 import ch.zli.mm233.engine.model.Policy;
@@ -11,7 +12,9 @@ import ch.zli.mm233.engine.model.WinCondition;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -76,6 +79,7 @@ public final class GameEngine {
                 null,
                 false,
                 Phase.ELECTION,
+                null,
                 null
         );
     }
@@ -95,6 +99,155 @@ public final class GameEngine {
                 nextPresident(s),
                 Phase.ELECTION,
                 s.winner());
+    }
+
+    public static GameState nominateChancellor(GameState s, int candidateIndex) {
+        if (s.phase() != Phase.ELECTION) {
+            throw new IllegalStateException("Can only nominate during ELECTION phase");
+        }
+        if (candidateIndex < 0 || candidateIndex >= s.players().size()) {
+            throw new IllegalArgumentException("Invalid candidate index: " + candidateIndex);
+        }
+        if (candidateIndex == s.presidentIndex()) {
+            throw new IllegalArgumentException("President cannot nominate themselves");
+        }
+        Player candidate = s.players().get(candidateIndex);
+        if (!candidate.alive()) {
+            throw new IllegalArgumentException("Cannot nominate dead player");
+        }
+        if (!isEligibleChancellor(s, candidateIndex)) {
+            throw new IllegalArgumentException("Player is ineligible due to term limits");
+        }
+
+        PendingAction.Election election = new PendingAction.Election(candidateIndex, Map.of());
+        return withPendingAction(s, election);
+    }
+
+    public static GameState castVote(GameState s, int playerIndex, boolean ja) {
+        if (!(s.pendingAction() instanceof PendingAction.Election election)) {
+            throw new IllegalStateException("No election in progress");
+        }
+        if (playerIndex < 0 || playerIndex >= s.players().size()) {
+            throw new IllegalArgumentException("Invalid player index: " + playerIndex);
+        }
+        Player voter = s.players().get(playerIndex);
+        if (!voter.alive()) {
+            throw new IllegalArgumentException("Dead players cannot vote");
+        }
+        if (election.votes().containsKey(playerIndex)) {
+            throw new IllegalArgumentException("Player has already voted");
+        }
+
+        Map<Integer, Boolean> newVotes = new HashMap<>(election.votes());
+        newVotes.put(playerIndex, ja);
+        PendingAction.Election updatedElection = new PendingAction.Election(
+                election.chancellorCandidateIndex(), newVotes);
+
+        return withPendingAction(s, updatedElection);
+    }
+
+    public static boolean allVotesCast(GameState s) {
+        if (!(s.pendingAction() instanceof PendingAction.Election election)) {
+            return false;
+        }
+        long aliveCount = s.players().stream().filter(Player::alive).count();
+        return election.votes().size() == aliveCount;
+    }
+
+    public static GameState resolveElection(GameState s) {
+        if (!(s.pendingAction() instanceof PendingAction.Election election)) {
+            throw new IllegalStateException("No election to resolve");
+        }
+        if (!allVotesCast(s)) {
+            throw new IllegalStateException("Not all votes have been cast");
+        }
+
+        long jaVotes = election.votes().values().stream().filter(v -> v).count();
+        long neinVotes = election.votes().size() - jaVotes;
+        boolean passed = jaVotes > neinVotes;
+
+        if (!passed) {
+            return failedElection(clearPendingAction(s));
+        }
+
+        int chancellorIndex = election.chancellorCandidateIndex();
+        Player chancellor = s.players().get(chancellorIndex);
+
+        if (s.fascistPolicies() >= 3 && chancellor.role() == Role.HITLER) {
+            return new GameState(
+                    s.players(),
+                    s.executiveActions(),
+                    s.liberalPolicies(),
+                    s.fascistPolicies(),
+                    s.drawPile(),
+                    s.discardPile(),
+                    s.electionTracker(),
+                    s.presidentIndex(),
+                    s.presidentIndex(),
+                    chancellorIndex,
+                    s.investigatedPlayerIds(),
+                    s.specialElectionReturnIndex(),
+                    s.vetoUnlocked(),
+                    Phase.GAME_OVER,
+                    WinCondition.HITLER_ELECTED_CHANCELLOR,
+                    null
+            );
+        }
+
+        return new GameState(
+                s.players(),
+                s.executiveActions(),
+                s.liberalPolicies(),
+                s.fascistPolicies(),
+                s.drawPile(),
+                s.discardPile(),
+                s.electionTracker(),
+                s.presidentIndex(),
+                s.presidentIndex(),
+                chancellorIndex,
+                s.investigatedPlayerIds(),
+                s.specialElectionReturnIndex(),
+                s.vetoUnlocked(),
+                Phase.LEGISLATIVE_SESSION,
+                null,
+                null
+        );
+    }
+
+    private static boolean isEligibleChancellor(GameState s, int candidateIndex) {
+        long aliveCount = s.players().stream().filter(Player::alive).count();
+        if (s.lastElectedChancellor() != null && s.lastElectedChancellor() == candidateIndex) {
+            return false;
+        }
+        if (aliveCount > 5 && s.lastElectedPresident() != null && s.lastElectedPresident() == candidateIndex) {
+            return false;
+        }
+        return true;
+    }
+
+    private static GameState withPendingAction(GameState s, PendingAction action) {
+        return new GameState(
+                s.players(),
+                s.executiveActions(),
+                s.liberalPolicies(),
+                s.fascistPolicies(),
+                s.drawPile(),
+                s.discardPile(),
+                s.electionTracker(),
+                s.presidentIndex(),
+                s.lastElectedPresident(),
+                s.lastElectedChancellor(),
+                s.investigatedPlayerIds(),
+                s.specialElectionReturnIndex(),
+                s.vetoUnlocked(),
+                s.phase(),
+                s.winner(),
+                action
+        );
+    }
+
+    private static GameState clearPendingAction(GameState s) {
+        return withPendingAction(s, null);
     }
 
     private static GameState enactChaosPolicy(GameState s) {
@@ -131,7 +284,8 @@ public final class GameEngine {
                 s.specialElectionReturnIndex(),
                 newFasc >= 5 || s.vetoUnlocked(),
                 phase,
-                winner
+                winner,
+                null
         );
     }
 
@@ -234,7 +388,8 @@ public final class GameEngine {
                 s.specialElectionReturnIndex(),
                 s.vetoUnlocked(),
                 phase,
-                winner
+                winner,
+                null
         );
     }
 }

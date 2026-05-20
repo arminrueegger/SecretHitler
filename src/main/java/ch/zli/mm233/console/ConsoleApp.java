@@ -1,7 +1,9 @@
 package ch.zli.mm233.console;
 
 import ch.zli.mm233.engine.GameEngine;
+import ch.zli.mm233.engine.model.ExecutivePower;
 import ch.zli.mm233.engine.model.GameState;
+import ch.zli.mm233.engine.model.Party;
 import ch.zli.mm233.engine.model.PendingAction;
 import ch.zli.mm233.engine.model.Phase;
 import ch.zli.mm233.engine.model.Player;
@@ -192,10 +194,110 @@ public class ConsoleApp {
         ui.println(chancName + " (Chancellor) receives: " + twoCards);
         int chancDiscardIdx = ui.promptInt(chancName + ", which card to DISCARD?", 0, 1);
         Policy chancDiscard = twoCards.get(chancDiscardIdx);
-        Policy enacted = twoCards.get(1 - chancDiscardIdx);
+        Policy enactedPolicy = twoCards.get(1 - chancDiscardIdx);
 
-        ui.println("Policy enacted: " + enacted);
-        return GameEngine.enactPolicy(dr.state(), enacted, presDiscard, chancDiscard);
+        ui.println("enacted Policy: " + enactedPolicy);
+        GameState afterEnact = GameEngine.enactPolicy(dr.state(), enactedPolicy, presDiscard, chancDiscard);
+
+        if (afterEnact.phase() == Phase.EXECUTIVE_ACTION) {
+            return runExecutiveAction(afterEnact);
+        }
+        return afterEnact;
+    }
+
+    private GameState runExecutiveAction(GameState s) {
+        if (!(s.pendingAction() instanceof PendingAction.ExecutiveActionPending pending)) {
+            return s;
+        }
+
+
+
+        ExecutivePower power = pending.power();
+        String prezName = s.players().get(s.presidentIndex()).name();
+        ui.blank();
+        ui.println("=== EXECUTIVE ACTION: " + power + " ===");
+        ui.println("President " + prezName + " has to use this power.");
+
+        return switch (power) {
+            case INVESTIGATE_LOYALTY -> runInvestigateLoyalty(s);
+            case CALL_SPECIAL_ELECTION -> runSpecialElection(s);
+            case POLICY_PEEK -> runPolicyPeek(s);
+            case EXECUTION -> runExecution(s);
+        };
+    }
+
+    private GameState runInvestigateLoyalty(GameState s) {
+        String prezName = s.players().get(s.presidentIndex()).name();
+        List<Player> eligible = s.players().stream()
+                .filter(p -> p.alive()
+                        && p.id() != s.presidentIndex()
+                        && !s.investigatedPlayerIds().contains(p.id()))
+                .toList();
+
+        ui.println("Pick player to investigate:");
+        eligible.forEach(p -> ui.println(" " + p.id() + " = " + p.name()));
+        while (true) {
+            int idx = ui.promptInt(prezName + ", pick player to investigate", 0, s.players().size() - 1);
+            try {
+                Party party = GameEngine.getPlayerParty(s, idx);
+                ui.println(s.players().get(idx).name() + " is member of the " + party + " party");
+                ui.println("(Press enter to continue)");
+                ui.promptLine("");
+                return GameEngine.investigateLoyalty(s, idx);
+            } catch (IllegalArgumentException e) {
+                ui.println(e.getMessage());
+            }
+        }
+    }
+
+    private GameState runSpecialElection(GameState s) {
+        String prezName = s.players().get(s.presidentIndex()).name();
+        List<Player> eligible = s.players().stream()
+                .filter(p -> p.alive() && p.id() != s.presidentIndex())
+                .toList();
+
+        ui.println("Choose the next President:");
+        eligible.forEach(p -> ui.println("  " + p.id() + " = " + p.name()));
+
+        while (true) {
+            int idx = ui.promptInt(prezName + ", pick next President", 0, s.players().size() - 1);
+            try {
+                ui.println(s.players().get(idx).name() + " will be the next President.");
+                return GameEngine.callSpecialElection(s, idx);
+            } catch (IllegalArgumentException e) {
+                ui.println(e.getMessage());
+            }
+        }
+    }
+
+    private GameState runPolicyPeek(GameState s) {
+        GameState peeked = GameEngine.policyPeek(s);
+        if (peeked.pendingAction() instanceof PendingAction.PolicyPeekResult result) {
+            ui.println("Top 3 policies in draw pile: " + result.topThree());
+            ui.println("(Press enter to continue)");
+            ui.promptLine("");
+        }
+        return GameEngine.acknowledgePeek(peeked);
+    }
+
+    private GameState runExecution(GameState s) {
+        String prezName = s.players().get(s.presidentIndex()).name();
+        List<Player> eligible = s.players().stream()
+                .filter(p -> p.alive() && p.id() != s.presidentIndex())
+                .toList();
+
+        ui.println("Choose a player to execute:");
+        eligible.forEach(p -> ui.println("  " + p.id() + " = " + p.name()));
+
+        while (true) {
+            int idx = ui.promptInt(prezName + ", pick player to execute", 0, s.players().size() - 1);
+            try {
+                ui.println(s.players().get(idx).name() + " has been executed.");
+                return GameEngine.killPlayer(s, idx);
+            } catch (IllegalArgumentException e) {
+                ui.println(e.getMessage());
+            }
+        }
     }
 
     private static <T> List<T> removeIndex(List<T> list, int idx) {

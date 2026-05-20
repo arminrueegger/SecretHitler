@@ -1,5 +1,6 @@
 package ch.zli.mm233.engine;
 
+import ch.zli.mm233.engine.model.ExecutivePower;
 import ch.zli.mm233.engine.model.FascistBoard;
 import ch.zli.mm233.engine.model.GameState;
 import ch.zli.mm233.engine.model.Party;
@@ -322,16 +323,251 @@ public final class GameEngine {
         WinCondition winner = newLib >= LIBERAL_WIN ? WinCondition.LIBERAL_POLICIES
                 : newFasc >= FASCIST_WIN ? WinCondition.FASCIST_POLICIES
                 : null;
-        Phase phase = winner != null ? Phase.GAME_OVER : Phase.ELECTION;
-        int nextPres = winner != null ? s.presidentIndex() : nextPresident(s);
 
         List<Policy> newDiscard = Stream.concat(
                 s.discardPile().stream(),
                 Stream.of(presDiscard, chancDiscard)
         ).toList();
 
-        return rebuildWithTracker(s, newLib, newFasc, s.drawPile(), newDiscard, 0, nextPres, phase, winner);
+        if (winner != null) {
+            return new GameState(
+                    s.players(),
+                    s.executiveActions(),
+                    newLib,
+                    newFasc,
+                    s.drawPile(),
+                    newDiscard,
+                    0,
+                    s.presidentIndex(),
+                    s.lastElectedPresident(),
+                    s.lastElectedChancellor(),
+                    s.investigatedPlayerIds(),
+                    s.specialElectionReturnIndex(),
+                    newFasc >= 5 || s.vetoUnlocked(),
+                    Phase.GAME_OVER,
+                    winner,
+                    null
+            );
+        }
+
+        ExecutivePower power = enacted == Policy.FASCIST
+                ? s.executiveActions().get(newFasc - 1)
+                : null;
+
+        if (power != null) {
+            return new GameState(
+                    s.players(),
+                    s.executiveActions(),
+                    newLib,
+                    newFasc,
+                    s.drawPile(),
+                    newDiscard,
+                    0,
+                    s.presidentIndex(),
+                    s.lastElectedPresident(),
+                    s.lastElectedChancellor(),
+                    s.investigatedPlayerIds(),
+                    s.specialElectionReturnIndex(),
+                    newFasc >= 5 || s.vetoUnlocked(),
+                    Phase.EXECUTIVE_ACTION,
+                    null,
+                    new PendingAction.ExecutiveActionPending(power)
+            );
+        }
+
+        return rebuildWithTracker(s, newLib, newFasc, s.drawPile(), newDiscard, 0, nextPresident(s), Phase.ELECTION, null);
     }
+
+    // exekutivzühs
+    public static GameState investigateLoyalty(GameState s, int targetPlayerIndex) {
+        if (s.phase() != Phase.EXECUTIVE_ACTION) {
+            throw new IllegalStateException("Can only investigate during EXECUTIVE_ACTION phase");
+        }
+        if (!(s.pendingAction() instanceof PendingAction.ExecutiveActionPending pending)
+                || pending.power() != ExecutivePower.INVESTIGATE_LOYALTY) {
+            throw new IllegalStateException("No investigate loyalty action pending");
+        }
+        if (targetPlayerIndex < 0 || targetPlayerIndex >= s.players().size()) {
+            throw new IllegalArgumentException("Invalid target player index: " + targetPlayerIndex);
+        }
+        if (targetPlayerIndex == s.presidentIndex()) {
+            throw new IllegalArgumentException("President cannot investigate themselves");
+        }
+        Player target = s.players().get(targetPlayerIndex);
+        if (!target.alive()) {
+            throw new IllegalArgumentException("Cannot investigate dead player");
+        }
+        if (s.investigatedPlayerIds().contains(targetPlayerIndex)) {
+            throw new IllegalArgumentException("Player has already been investigated");
+        }
+
+        Set<Integer> newInvestigated = new java.util.HashSet<>(s.investigatedPlayerIds());
+        newInvestigated.add(targetPlayerIndex);
+
+        return transitionToElectionAfterExecutive(s, s.players(), newInvestigated);
+    }
+
+    public static Party getPlayerParty(GameState s, int playerIndex) {
+        return s.players().get(playerIndex).partyCard();
+    }
+
+    public static GameState callSpecialElection(GameState s, int targetPlayerIndex) {
+        if (!(s.pendingAction() instanceof PendingAction.ExecutiveActionPending pending)
+                || pending.power() != ExecutivePower.CALL_SPECIAL_ELECTION) {
+            throw new IllegalStateException("No special election action pending");
+        }
+        if (targetPlayerIndex < 0 || targetPlayerIndex >= s.players().size()) {
+            throw new IllegalArgumentException("Invalid target player index: " + targetPlayerIndex);
+        }
+        if (targetPlayerIndex == s.presidentIndex()) {
+            throw new IllegalArgumentException("President cannot pick themselves for special election");
+        }
+        Player target = s.players().get(targetPlayerIndex);
+        if (!target.alive()) {
+            throw new IllegalArgumentException("Cannot pick dead player for president");
+        }
+
+        int returnIndex = (s.presidentIndex() + 1) % s.players().size();
+
+        return new GameState(
+                s.players(),
+                s.executiveActions(),
+                s.liberalPolicies(),
+                s.fascistPolicies(),
+                s.drawPile(),
+                s.discardPile(),
+                s.electionTracker(),
+                targetPlayerIndex,
+                s.lastElectedPresident(),
+                s.lastElectedChancellor(),
+                s.investigatedPlayerIds(),
+                returnIndex,
+                s.vetoUnlocked(),
+                Phase.ELECTION,
+                null,
+                null
+        );
+    }
+
+    public static GameState policyPeek(GameState s) {
+
+        boolean needsReshuffle = s.drawPile().size() < 3;
+        List<Policy> sourceDeck = needsReshuffle
+                ? reshuffledDeck(s.drawPile(), s.discardPile())
+                : s.drawPile();
+        List<Policy> remainingDiscard = needsReshuffle ? List.of() : s.discardPile();
+
+        List<Policy> topThree = sourceDeck.subList(0, 3);
+
+        return new GameState(
+                s.players(),
+                s.executiveActions(),
+                s.liberalPolicies(),
+                s.fascistPolicies(),
+                sourceDeck,
+                remainingDiscard,
+                s.electionTracker(),
+                s.presidentIndex(),
+                s.lastElectedPresident(),
+                s.lastElectedChancellor(),
+                s.investigatedPlayerIds(),
+                s.specialElectionReturnIndex(),
+                s.vetoUnlocked(),
+                Phase.EXECUTIVE_ACTION,
+                null,
+                new PendingAction.PolicyPeekResult(topThree)
+        );
+    }
+
+    public static GameState acknowledgePeek(GameState s) {
+        if (!(s.pendingAction() instanceof PendingAction.PolicyPeekResult)) {
+            throw new IllegalStateException("falscher Zustand");
+        }
+        return transitionToElectionAfterExecutive(s, s.players(), s.investigatedPlayerIds());
+    }
+    public static GameState killPlayer(GameState s, int targetPlayerIndex) {
+        if (s.phase() != Phase.EXECUTIVE_ACTION) {
+            throw new IllegalStateException("Can only execute during executive_action phase");
+        }
+        if (!(s.pendingAction() instanceof PendingAction.ExecutiveActionPending pending)
+                || pending.power() != ExecutivePower.EXECUTION) {
+            throw new IllegalStateException("No execution action pending");
+        }
+        if (targetPlayerIndex < 0 || targetPlayerIndex >= s.players().size()) {
+            throw new IllegalArgumentException("Invalid target player index:" + targetPlayerIndex);
+        }
+        Player target = s.players().get(targetPlayerIndex);
+        if (!target.alive()) {
+            throw new IllegalArgumentException("Cannot execute already dead player");
+        }
+
+        List<Player> newPlayers = new ArrayList<>(s.players());
+        Player killed = newPlayers.get(targetPlayerIndex);
+        newPlayers.set(targetPlayerIndex, new Player(killed.id(), killed.name(), killed.role(), killed.partyCard(), false));
+
+        if (killed.role() == Role.HITLER) {
+            return new GameState(
+                    newPlayers,
+                    s.executiveActions(),
+                    s.liberalPolicies(),
+                    s.fascistPolicies(),
+                    s.drawPile(),
+                    s.discardPile(),
+                    s.electionTracker(),
+                    s.presidentIndex(),
+                    s.lastElectedPresident(),
+                    s.lastElectedChancellor(),
+                    s.investigatedPlayerIds(),
+                    s.specialElectionReturnIndex(),
+                    s.vetoUnlocked(),
+                    Phase.GAME_OVER,
+                    WinCondition.HITLER_EXECUTED,
+                    null
+            );
+        }
+
+        return transitionToElectionAfterExecutive(s, newPlayers, s.investigatedPlayerIds());
+    }
+
+    private static GameState transitionToElectionAfterExecutive(GameState s, List<Player> players, Set<Integer> investigated) {
+        int nextPres;
+        Integer newReturnIndex;
+        if (s.specialElectionReturnIndex() != null) {
+            nextPres = s.specialElectionReturnIndex();
+            while (!players.get(nextPres).alive()) {
+                nextPres = (nextPres + 1) % players.size();
+            }
+            newReturnIndex = null;
+        } else {
+            int next = (s.presidentIndex() + 1) % players.size();
+            while (!players.get(next).alive()) {
+                next = (next + 1) % players.size();
+            }
+            nextPres = next;
+            newReturnIndex = null;
+        }
+
+        return new GameState(
+                players,
+                s.executiveActions(),
+                s.liberalPolicies(),
+                s.fascistPolicies(),
+                s.drawPile(),
+                s.discardPile(),
+                s.electionTracker(),
+                nextPres,
+                s.lastElectedPresident(),
+                s.lastElectedChancellor(),
+                investigated,
+                newReturnIndex,
+                s.vetoUnlocked(),
+                Phase.ELECTION,
+                null,
+                null
+        );
+    }
+
+    //exekutiv züg
 
     private static int fascistsFor(int playerCount) {
         return switch (playerCount) {

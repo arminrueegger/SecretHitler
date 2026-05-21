@@ -7,10 +7,15 @@ public class ConsoleUi {
 
     private final Scanner in;
     private final PrintStream out;
+    private boolean undoEnabled;
 
     public ConsoleUi(Scanner in, PrintStream out) {
         this.in = in;
         this.out = out;
+    }
+
+    public void setUndoEnabled(boolean enabled) {
+        this.undoEnabled = enabled;
     }
 
     public void println(String line) {
@@ -23,13 +28,16 @@ public class ConsoleUi {
 
     public String promptLine(String prompt) {
         out.print(prompt + ": ");
-        return in.hasNextLine() ? in.nextLine().trim() : "";
+        String raw = in.hasNextLine() ? in.nextLine().trim() : "";
+        checkUndo(raw);
+        return raw;
     }
 
     public int promptInt(String prompt, int min, int max) {
         while (true) {
             out.print(prompt + " [" + min + ".." + max + "]: ");
             String line = in.hasNextLine() ? in.nextLine().trim() : "";
+            checkUndo(line);
             try {
                 int v = Integer.parseInt(line);
                 if (v >= min && v <= max) {
@@ -45,6 +53,7 @@ public class ConsoleUi {
         while (true) {
             out.print(prompt + " [y/n]: ");
             String line = in.hasNextLine() ? in.nextLine().trim().toLowerCase() : "";
+            checkUndo(line);
             if (line.equals("y") || line.equals("yes") || line.equals("ja")) {
                 return true;
             }
@@ -52,6 +61,12 @@ public class ConsoleUi {
                 return false;
             }
             out.println("  invalid, try again");
+        }
+    }
+
+    private void checkUndo(String raw) {
+        if (undoEnabled && (raw.equalsIgnoreCase("u") || raw.equalsIgnoreCase("undo"))) {
+            throw new UndoRequestedException();
         }
     }
 }

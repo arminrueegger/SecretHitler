@@ -9,7 +9,9 @@ import ch.zli.mm233.engine.model.Phase;
 import ch.zli.mm233.engine.model.Player;
 import ch.zli.mm233.engine.model.Policy;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.IntStream;
@@ -17,6 +19,7 @@ import java.util.stream.IntStream;
 public class ConsoleApp {
 
     private final ConsoleUi ui;
+    private final Deque<GameState> history = new ArrayDeque<>();
 
     public ConsoleApp(ConsoleUi ui) {
         this.ui = ui;
@@ -32,11 +35,31 @@ public class ConsoleApp {
         List<String> names = readNames();
         GameState state = GameEngine.newGame(names);
         printSecretRoles(state);
+        ui.setUndoEnabled(true);
+        ui.println("(Type 'u' at any prompt to undo within the current round.)");
         while (state.phase() != Phase.GAME_OVER) {
-            state = runRound(state);
+            try {
+                state = playStep(state);
+            } catch (UndoRequestedException e) {
+                if (history.isEmpty()) {
+                    ui.println("Nothing to undo.");
+                } else {
+                    state = history.pop();
+                    ui.println("--- UNDONE ---");
+                }
+            }
         }
         ui.blank();
         ui.println("GAME OVER - " + state.winner());
+    }
+
+    private GameState playStep(GameState s) {
+        return switch (s.phase()) {
+            case ELECTION -> runRoundFromElection(s);
+            case LEGISLATIVE_SESSION -> runLegFromState(s);
+            case EXECUTIVE_ACTION -> runExecutiveAction(s);
+            case GAME_OVER -> s;
+        };
     }
 
     private void printTitleScreen() {
@@ -124,7 +147,10 @@ public class ConsoleApp {
         return List.copyOf(names);
     }
 
-    private GameState runRound(GameState s) {
+    private GameState runRoundFromElection(GameState s) {
+        history.clear();
+        history.push(s);
+
         printPublicState(s);
         GameState afterNominate = nominateChancellor(s);
         int chancellorIdx = ((PendingAction.Election) afterNominate.pendingAction())
@@ -141,7 +167,14 @@ public class ConsoleApp {
         }
         ui.println("Vote PASSED. Chancellor is "
                 + s.players().get(chancellorIdx).name() + ".");
-        return runLegislativeSession(resolved, chancellorIdx);
+
+        history.push(resolved);
+        return runLegFromState(resolved);
+    }
+
+    private GameState runLegFromState(GameState s) {
+        int chancellorIdx = s.lastElectedChancellor();
+        return runLegislativeSession(s, chancellorIdx);
     }
 
     private void printPublicState(GameState s) {

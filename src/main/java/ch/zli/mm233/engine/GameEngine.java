@@ -42,7 +42,7 @@ public final class GameEngine {
     public static GameState newGame(List<String> names) {
         int n = names.size();
         if (n < 5 || n > 10) {
-            throw new IllegalArgumentException("playerCount must be 5..10, got " + n);
+            throw new IllegalArgumentException("playercount must be 5..10, got " + n);
         }
         int fascCount = fascistsFor(n);
         int libCount = n - fascCount - 1;

@@ -22,18 +22,18 @@
 - [x] Term limits (lastElected pair restricts chancellor; relaxed when alive < 5) — fixed off-by-one (`>=5`) and now invoked from `ConsoleApp`
 - [x] Win: Hitler elected chancellor after >=3 fascist policies — `ConsoleApp` now calls `GameEngine.resolveElection`
 - [x] `runConsole` toolchain fix (launcher scoped to `runConsole` + `bootRun` only, no longer conflicts with IntelliJ's synthetic `main()` task)
-- [ ] Executive power: Investigate Loyalty
-- [ ] Executive power: Call Special Election
-- [ ] Executive power: Policy Peek
-- [ ] Executive power: Execution
-- [ ] Veto power (unlock after 5 fascist; chancellor proposes / president confirms)
+- [x] Executive power: Investigate Loyalty
+- [x] Executive power: Call Special Election
+- [x] Executive power: Policy Peek
+- [x] Executive power: Execution
+- [-fuck no] Veto power (unlock after 5 fascist; chancellor proposes / president confirms)
 - [ ] Win: Hitler executed
 - [ ] Undo (wire `GameSession.history` push/pop, clear pending on undo)
 - [ ] Dead-player vote exclusion (engine already rejects; console now skips, but no executions to trigger it yet)
 - [ ] JSON DTOs in `api/`
-- [ ] Hotseat handoff screens
-- [ ] Frontend (HTML/CSS/JS) per `plan.md`
-- [ ] Role visibility filter: 5-6 Hitler sees fascists; 7+ only fascists see Hitler
+- [-fuck no] Hotseat handoff screens
+- [-fuck no] Frontend (HTML/CSS/JS) per `plan.md`
+- [-fuck no] Role visibility filter: 5-6 Hitler sees fascists; 7+ only fascists see Hitler
 
 - [x] implement chaos mechanic
 - [x] implement presidential election and chancellor nomination

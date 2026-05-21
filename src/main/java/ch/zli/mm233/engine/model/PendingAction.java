@@ -7,8 +7,7 @@ import java.util.Objects;
 public sealed interface PendingAction
         permits PendingAction.Election,
                 PendingAction.LegislativeSession,
-                PendingAction.ExecutiveActionPending,
-                PendingAction.PolicyPeekResult {
+                PendingAction.ExecutiveActionPending {
 
     record Election(
             Integer chancellorCandidateIndex,
@@ -34,12 +33,6 @@ public sealed interface PendingAction
     record ExecutiveActionPending(ExecutivePower power) implements PendingAction {
         public ExecutiveActionPending {
             Objects.requireNonNull(power, "power");
-        }
-    }
-
-    record PolicyPeekResult(List<Policy> topThree) implements PendingAction {
-        public PolicyPeekResult {
-            topThree = List.copyOf(Objects.requireNonNull(topThree, "topThree"));
         }
     }
 }

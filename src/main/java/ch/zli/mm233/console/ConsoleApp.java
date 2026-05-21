@@ -209,9 +209,6 @@ public class ConsoleApp {
         if (!(s.pendingAction() instanceof PendingAction.ExecutiveActionPending pending)) {
             return s;
         }
-
-
-
         ExecutivePower power = pending.power();
         String prezName = s.players().get(s.presidentIndex()).name();
         ui.blank();
@@ -239,11 +236,12 @@ public class ConsoleApp {
         while (true) {
             int idx = ui.promptInt(prezName + ", pick player to investigate", 0, s.players().size() - 1);
             try {
-                Party party = GameEngine.getPlayerParty(s, idx);
+                GameState next = GameEngine.investigateLoyalty(s, idx);
+                Party party = s.players().get(idx).partyCard();
                 ui.println(s.players().get(idx).name() + " is member of the " + party + " party");
                 ui.println("(Press enter to continue)");
                 ui.promptLine("");
-                return GameEngine.investigateLoyalty(s, idx);
+                return next;
             } catch (IllegalArgumentException e) {
                 ui.println(e.getMessage());
             }
@@ -271,13 +269,11 @@ public class ConsoleApp {
     }
 
     private GameState runPolicyPeek(GameState s) {
-        GameState peeked = GameEngine.policyPeek(s);
-        if (peeked.pendingAction() instanceof PendingAction.PolicyPeekResult result) {
-            ui.println("Top 3 policies in draw pile: " + result.topThree());
-            ui.println("(Press enter to continue)");
-            ui.promptLine("");
-        }
-        return GameEngine.acknowledgePeek(peeked);
+        GameEngine.PeekResult peek = GameEngine.policyPeek(s);
+        ui.println("Top 3 policies in draw pile: " + peek.topThree());
+        ui.println("(Press enter to continue)");
+        ui.promptLine("");
+        return peek.state();
     }
 
     private GameState runExecution(GameState s) {
